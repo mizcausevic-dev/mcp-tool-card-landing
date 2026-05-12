@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MCP Tool Cards — Kinetic Gain Protocol Suite</title>
+  <meta name="description" content="MCP Tool Cards — open JSON specification, part of the Kinetic Gain Protocol Suite." />
+  <meta name="theme-color" content="#be123c" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="MCP Tool Cards — Kinetic Gain Protocol Suite" />
+  <meta property="og:url" content="https://toolcards.kineticgain.com/" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a href="/" class="brand">
+        <span class="brand-mark">⚒</span>
+        <span class="brand-text">
+          <strong>MCP Tool Cards</strong>
+          <small>Kinetic Gain Protocol Suite</small>
+        </span>
+      </a>
+      <nav class="nav-links">
+        <a href="#why">Why</a>
+        <a href="#spec">Spec</a>
+        <a href="#example">Example</a>
+        <a href="#tooling">Tooling</a>
+        <a class="cta" href="https://github.com/mizcausevic-dev/mcp-tool-card-spec" target="_blank" rel="noreferrer">GitHub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-inner">
+        <span class="pill">v0.1 draft · core spec</span>
+        <h1>Per-tool disclosure for<br><em>MCP servers.</em></h1>
+        <p class="lede"><strong>MCP Tool Cards</strong> is an open JSON spec for declarative per-tool disclosure on Model Context Protocol servers: input schema, safety profile (side-effect class, PII / secrets exposure, approval requirement), tested-LLM matrix with pass rates, performance metrics (p50 / p99 latency), and audit log location.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="https://github.com/mizcausevic-dev/mcp-tool-card-spec" target="_blank" rel="noreferrer">Read the spec</a>
+          <a class="btn btn-secondary" href="https://mizcausevic-dev.github.io/kinetic-gain-visualizer/?view=editor" target="_blank" rel="noreferrer">Try the visualizer</a>
+        </div>
+        <ul class="hero-bullets">
+          <li><span class="dot dot-accent"></span> Detect via <code>tool_card_version</code></li>
+          <li><span class="dot dot-accent"></span> Well-known: <code>/.well-known/mcp-tools/&lt;tool_name&gt;.json</code></li>
+          <li><span class="dot dot-accent"></span> Cross-referenced from <a href="https://github.com/mizcausevic-dev/ai-incident-card-spec" target="_blank" rel="noreferrer">AI Incident Cards</a> on failure</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="why" class="block">
+      <div class="block-inner">
+        <h2>Why per-tool disclosure for MCP?</h2>
+        <p class="prose">MCP makes it trivial for an agent to invoke a tool. That same ease is the security problem: an agent talking to an unfamiliar MCP server has no machine-readable way to ask 'is this tool read-only? what PII does it expose? has it been tested with my model?' MCP Tool Cards fills that gap.</p>
+        <div class="grid grid-3">
+          <article class="card">
+            <h3>Tool identity</h3>
+            <p><code>server_id</code>, <code>name</code>, semver <code>version</code>, <code>mcp_server_uri</code>, plain-text <code>description</code>. The minimum identifier.</p>
+          </article>
+          <article class="card">
+            <h3>Schema</h3>
+            <p><code>input_schema_uri</code> or <code>input_schema_inline</code> (JSON Schema). The contract the tool expects.</p>
+          </article>
+          <article class="card">
+            <h3>Safety</h3>
+            <p><code>side_effect_class</code> (<code>read</code> / <code>mutating</code> / <code>external</code> / <code>destructive</code>), <code>reversible</code>, <code>rate_limited</code>, <code>pii_exposure</code>, <code>secrets_exposure</code>, <code>human_approval_required</code>.</p>
+          </article>
+          <article class="card">
+            <h3>Refusal modes</h3>
+            <p><code>refusal_modes[]</code> — declared conditions where the tool will refuse (cross-tenant access, rate-limit exceeded, etc.). Procurement reviewers grep this.</p>
+          </article>
+          <article class="card">
+            <h3>Tested-with matrix</h3>
+            <p>Array of <code>{ llm, provider, test_suite_uri, pass_rate, tested_at }</code>. Vendors can declare 'this tool was tested with Claude Opus 4-7 at 98% pass rate on suite X'.</p>
+          </article>
+          <article class="card">
+            <h3>Performance + audit</h3>
+            <p><code>p50_latency_ms</code> / <code>p99_latency_ms</code> / <code>measurement_window</code>, plus <code>audit.log_uri</code> and <code>retention_days</code>. The minimum operational disclosure.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="spec" class="block block-tinted">
+      <div class="block-inner">
+        <h2>The required sections</h2>
+        <ol class="numbered">
+          <li><strong><code>tool_card_version</code></strong> — must be <code>"0.1"</code></li>
+          <li><strong><code>tool</code></strong> — server_id, name, version, mcp_server_uri, description</li>
+          <li><strong><code>schema</code></strong> — input_schema_inline or input_schema_uri</li>
+          <li><strong><code>safety</code></strong> — side-effect class, reversible, rate-limited, PII / secrets exposure, approval</li>
+          <li><strong><code>tested_with</code></strong> (optional) — LLM matrix with pass rates</li>
+          <li><strong><code>performance</code></strong> (optional) — p50 / p99 latency, measurement window</li>
+          <li><strong><code>audit</code></strong> (optional) — log URI, retention days</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="example" class="block">
+      <div class="block-inner">
+        <h2>A canonical example</h2>
+        <pre class="code-block"><code>{
+  "tool_card_version": "0.1",
+  "tool": {
+    "server_id": "kg-billing-mcp",
+    "name": "billing-lookup",
+    "version": "1.4.0",
+    "mcp_server_uri": "https://billing.kineticgain.com/mcp",
+    "description": "Looks up a customer's current invoice, plan tier, and usage-to-date. Read-only."
+  },
+  "schema": {
+    "input_schema_inline": {
+      "type": "object",
+      "required": ["customer_id"],
+      "properties": { "customer_id": { "type": "string" } }
+    }
+  },
+  "safety": {
+    "side_effect_class": "read",
+    "external_systems": ["stripe-api"],
+    "reversible": true,
+    "rate_limited": true,
+    "pii_exposure": "low",
+    "secrets_exposure": "none",
+    "human_approval_required": false,
+    "refusal_modes": ["cross_tenant_access", "rate_limit_exceeded"]
+  },
+  "tested_with": [
+    { "llm": "claude-opus-4-7", "provider": "Anthropic",
+      "test_suite_uri": "https://eval.kineticgain.com/suites/mcp-billing-v2",
+      "pass_rate": 0.98, "tested_at": "2026-05-08T10:00:00Z" }
+  ],
+  "performance": { "p50_latency_ms": 120, "p99_latency_ms": 580, "measurement_window": "last_7d" },
+  "audit": { "log_uri": "https://audit.kineticgain.com/mcp/billing-lookup", "retention_days": 365 }
+}</code></pre>
+      </div>
+    </section>
+
+    <section id="tooling" class="block block-dark">
+      <div class="block-inner">
+        <h2>Tooling around the spec</h2>
+        <div class="grid grid-3">
+          <a class="card card-dark" href="https://github.com/mizcausevic-dev/mcp-tool-card-spec" target="_blank" rel="noreferrer">
+            <div class="card-eyebrow">Specification</div>
+            <h3>mcp-tool-card-spec</h3>
+            <p>Normative spec, JSON Schema 2020-12, canonical examples. AGPL-3.0 for spec text; implementations unrestricted.</p>
+            <span class="link">View repo →</span>
+          </a>
+          <a class="card card-dark" href="https://mizcausevic-dev.github.io/kinetic-gain-visualizer/" target="_blank" rel="noreferrer">
+            <div class="card-eyebrow">Visualizer</div>
+            <h3>kinetic-gain-visualizer</h3>
+            <p>Unified visualizer for all 10 specs. Auto-detects via <code>tool_card_version</code> and renders a procurement-grade view.</p>
+            <span class="link">Open visualizer →</span>
+          </a>
+          <a class="card card-dark" href="https://github.com/mizcausevic-dev/mcp-kinetic-gain" target="_blank" rel="noreferrer">
+            <div class="card-eyebrow">MCP server</div>
+            <h3>mcp-kinetic-gain</h3>
+            <p>34 tools across 8 specs. Drops into Claude Desktop / Cursor / any MCP-compatible client via stdio with one config entry.</p>
+            <span class="link">View on GitHub →</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-inner block-narrow">
+        <h2>About the Kinetic Gain Protocol Suite</h2>
+        <p class="prose">
+          MCP Tool Cards is one of <strong>ten open JSON specifications</strong> in the Kinetic Gain Protocol Suite. Five core specs plus the <a href="https://tutor.kineticgain.com" target="_blank" rel="noreferrer">EdTech trio</a>, the <a href="https://clinical.kineticgain.com" target="_blank" rel="noreferrer">HealthTech extension</a>, and the cross-cutting <a href="https://incidents.kineticgain.com" target="_blank" rel="noreferrer">Incident Card</a>. <strong>Front door: <a href="https://suite.kineticgain.com" target="_blank" rel="noreferrer">suite.kineticgain.com</a></strong>.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <small>© 2026 Miz Causevic · <a href="https://kineticgain.com" target="_blank" rel="noreferrer">kineticgain.com</a> · <a href="https://github.com/mizcausevic-dev" target="_blank" rel="noreferrer">GitHub</a> · <a href="https://www.linkedin.com/in/mirzacausevic/" target="_blank" rel="noreferrer">LinkedIn</a></small>
+      <small class="code">toolcards.kineticgain.com · MCP Tool Cards v0.1</small>
+    </div>
+  </footer>
+</body>
+</html>
